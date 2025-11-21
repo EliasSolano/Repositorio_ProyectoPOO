@@ -2,7 +2,7 @@ import re  # Importamos el módulo 're' (Expresiones Regulares).
 # Es una herramienta muy potente para buscar patrones específicos de texto
 # (como "buscar si hay un número" o "buscar si hay un símbolo").
 
-def validar_contrasena(password):
+def validar_contrasena(password): #Esto es para validar contraseña (obviamente)
     """
     Función que recibe una contraseña y verifica si cumple las reglas.
     Devuelve dos valores:
@@ -77,4 +77,5 @@ if __name__ == "__main__":
             for mensaje in mensajes:
                 print(mensaje) # Imprime cada error de la lista uno por uno
             print("-" * 30) # Una línea separadora para que se vea ordenado
+
             print("Inténtalo de nuevo.\n")
