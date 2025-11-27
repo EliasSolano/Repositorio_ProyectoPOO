@@ -1,5 +1,12 @@
+from __future__ import annotations
+import json
+import os
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+
+import tkinter as tk
+from tkinter import messagebox, simpledialog
 import customtkinter as ctk
-from tkinter import messagebox
 
 # =========================================
 # MODELO (POO)
