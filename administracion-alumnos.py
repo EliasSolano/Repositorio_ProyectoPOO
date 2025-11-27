@@ -1,183 +1,185 @@
 from __future__ import annotations
-import json
-import os
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 import customtkinter as ctk
 
-# -------------------------
-# CLASES
-# -------------------------
+class AlumnosPanel:
 
-class Alumno:
-    def __init__(self, nombre, rut, id_alumno):
-        self.nombre = nombre
-        self.rut = rut
-        self.id_alumno = id_alumno
+    def __init__(self, app_gui, sistema):
+        self.app = app_gui
+        self.sistema = sistema
 
-    def mostrar_info(self):
-        return f"Nombre: {self.nombre} | RUT: {self.rut} | ID: {self.id_alumno}"
+        parent = getattr(self.app, "contenido", self.app)
+        self.frame = ctk.CTkFrame(parent)
 
+        top = ctk.CTkFrame(self.frame)
+        top.pack(side="top", fill="x", padx=6, pady=6)
+        ctk.CTkLabel(top, text="Alumnos (globales)", font=("Arial", 14)).pack(side="left", padx=6)
 
-class SistemaAlumnos:
-    def __init__(self):
-        self.alumnos = []
+        campos = ctk.CTkFrame(self.frame)
+        campos.pack(side="top", fill="x", padx=6, pady=6)
+        self.entrada_nombre_alumno = ctk.CTkEntry(campos, placeholder_text="Nombre alumno")
+        self.entrada_rut_alumno = ctk.CTkEntry(campos, placeholder_text="RUT (opcional)")
+        self.entrada_nombre_alumno.pack(padx=4, pady=4)
+        self.entrada_rut_alumno.pack(padx=4, pady=4)
 
-    def agregar_alumno(self, alumno):
-        self.alumnos.append(alumno)
+        btns = ctk.CTkFrame(campos)
+        btns.pack(pady=6)
+        ctk.CTkButton(btns, text="Agregar (global)", command=self.ui_agregar_alumno).pack(side="left", padx=6)
+        ctk.CTkButton(btns, text="Editar seleccionado", command=self.ui_editar_alumno).pack(side="left", padx=6)
+        ctk.CTkButton(btns, text="Eliminar seleccionado", command=self.ui_eliminar_alumno).pack(side="left", padx=6)
 
-    def buscar_alumno(self, id_alumno):
-        for a in self.alumnos:
-            if a.id_alumno == id_alumno:
-                return a
-        return None
+        listf = ctk.CTkFrame(self.frame)
+        listf.pack(fill="both", expand=True, padx=6, pady=6)
+        self.listbox_alumnos = tk.Listbox(listf, height=16)
+        self.listbox_alumnos.pack(side="left", fill="both", expand=True, padx=6, pady=6)
+        sb = tk.Scrollbar(listf, command=self.listbox_alumnos.yview)
+        sb.pack(side="right", fill="y")
+        self.listbox_alumnos.config(yscrollcommand=sb.set)
+        self.listbox_alumnos.bind("<<ListboxSelect>>", self._on_select)
 
-    def eliminar_alumno(self, id_alumno):
-        alumno = self.buscar_alumno(id_alumno)
-        if alumno:
-            self.alumnos.remove(alumno)
-            return True
-        return False
+        self.refrescar_lista_alumnos()
 
-    def listar_alumnos(self):
-        return [a.mostrar_info() for a in self.alumnos]
+    def refrescar_lista_alumnos(self):
+        """Refresca la lista de alumnos desde self.sistema.estudiantes"""
+        self.listbox_alumnos.delete(0, "end")
+        try:
+            items = sorted(self.sistema.estudiantes.items())
+        except Exception:
+            items = []
+        for sid, st in items:
+            # mostrar en el mismo formato que el original
+            nombre = getattr(st, "nombre", str(st))
+            rut = getattr(st, "rut", "")
+            self.listbox_alumnos.insert("end", f"{sid}: {nombre} (RUT: {rut})")
 
-
-sistema = SistemaAlumnos()
-
-# -------------------------
-# FUNCIONES GUI
-# -------------------------
-
-def ventana_crear_alumno():
-    def guardar():
-        nombre = entry_nombre.get()
-        rut = entry_rut.get()
-        id_alumno = entry_id.get()
-
-        if not nombre or not rut or not id_alumno:
-            messagebox.showerror("Error", "Todos los campos son obligatorios")
+    def ui_agregar_alumno(self):
+        """Agrega un alumno global usando los campos del formulario"""
+        nombre = self.entrada_nombre_alumno.get().strip()
+        rut = self.entrada_rut_alumno.get().strip()
+        if not nombre:
+            messagebox.showwarning("Faltan datos", "Nombre obligatorio.")
             return
+        try:
+            st = self.sistema.agregar_estudiante_global(nombre, rut)
+            messagebox.showinfo("Éxito", f"Alumno agregado (ID: {st.id}).")
+            self.entrada_nombre_alumno.delete(0, "end")
+            self.entrada_rut_alumno.delete(0, "end")
+            self.refrescar_lista_alumnos()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
-        nuevo = Alumno(nombre, rut, id_alumno)
-        sistema.agregar_alumno(nuevo)
+    def ui_editar_alumno(self):
+        """Edita el alumno seleccionado con los valores actuales del formulario"""
+        sel = self.listbox_alumnos.curselection()
+        if not sel:
+            messagebox.showwarning("Seleccione", "Seleccione un alumno para editar.")
+            return
+        txt = self.listbox_alumnos.get(sel[0])
+        sid = int(txt.split(":")[0])
+        nuevo_nombre = self.entrada_nombre_alumno.get().strip()
+        nuevo_rut = self.entrada_rut_alumno.get().strip()
+        if not nuevo_nombre:
+            messagebox.showwarning("Faltan datos", "Nombre obligatorio.")
+            return
+        try:
+            self.sistema.actualizar_estudiante(sid, nuevo_nombre, nuevo_rut)
+            messagebox.showinfo("Éxito", "Alumno modificado.")
+            self.entrada_nombre_alumno.delete(0, "end")
+            self.entrada_rut_alumno.delete(0, "end")
+            self.refrescar_lista_alumnos()
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
-        messagebox.showinfo("Éxito", "Alumno agregado correctamente")
-        ventana.destroy()
+    def ui_eliminar_alumno(self):
+        """Elimina el alumno seleccionado tras pedir confirmación"""
+        sel = self.listbox_alumnos.curselection()
+        if not sel:
+            messagebox.showwarning("Seleccione", "Seleccione un alumno para eliminar.")
+            return
+        txt = self.listbox_alumnos.get(sel[0])
+        sid = int(txt.split(":")[0])
+        if messagebox.askyesno("Confirmar", f"Eliminar alumno {sid}? Esto lo quita de todas las sesiones."):
+            try:
+                self.sistema.eliminar_estudiante(sid)
+                messagebox.showinfo("Éxito", "Alumno eliminado.")
+                self.refrescar_lista_alumnos()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
 
-    ventana = ctk.CTkToplevel(app)
-    ventana.title("Crear Alumno")
-    ventana.geometry("350x250")
+    def _on_select(self, event=None):
+        """Al seleccionar un alumno, rellenar los campos con sus datos (comodidad)"""
+        sel = self.listbox_alumnos.curselection()
+        if not sel:
+            return
+        txt = self.listbox_alumnos.get(sel[0])
+        sid = int(txt.split(":")[0])
+        st = self.sistema.estudiantes.get(sid)
+        if not st:
+            return
+        try:
+            self.entrada_nombre_alumno.delete(0, "end")
+            self.entrada_nombre_alumno.insert(0, st.nombre)
+            self.entrada_rut_alumno.delete(0, "end")
+            self.entrada_rut_alumno.insert(0, st.rut)
+        except Exception:
+            pass
 
-    ctk.CTkLabel(ventana, text="Nombre:").pack(pady=4)
-    entry_nombre = ctk.CTkEntry(ventana)
-    entry_nombre.pack()
+if __name__ == "__main__":
+    try:
+        from asistencia_app import SistemaAsistencia 
+    except Exception:
+        class Estudiante:
+            def __init__(self, id, nombre, rut=""):
+                self.id = id
+                self.nombre = nombre
+                self.rut = rut
+            def to_dict(self): return {"id": self.id, "nombre": self.nombre, "rut": self.rut}
 
-    ctk.CTkLabel(ventana, text="RUT:").pack(pady=4)
-    entry_rut = ctk.CTkEntry(ventana)
-    entry_rut.pack()
+        class SistemaAsistencia:
+            def __init__(self):
+                self.estudiantes = {}
+                self.siguiente_id_estudiante = 1
+            def agregar_estudiante_global(self, nombre, rut=""):
+                st = Estudiante(self.siguiente_id_estudiante, nombre, rut)
+                self.estudiantes[st.id] = st
+                self.siguiente_id_estudiante += 1
+                return st
+            def actualizar_estudiante(self, estudiante_id, nuevo_nombre, nuevo_rut):
+                if estudiante_id not in self.estudiantes:
+                    raise ValueError("Alumno no encontrado")
+                st = self.estudiantes[estudiante_id]
+                st.nombre = nuevo_nombre
+                st.rut = nuevo_rut
+                return st
+            def eliminar_estudiante(self, estudiante_id):
+                if estudiante_id not in self.estudiantes:
+                    raise ValueError("Alumno no encontrado")
+                del self.estudiantes[estudiante_id]
 
-    ctk.CTkLabel(ventana, text="ID:").pack(pady=4)
-    entry_id = ctk.CTkEntry(ventana)
-    entry_id.pack()
+    class AppSimulada(ctk.CTk):
+        def __init__(self, sistema):
+            super().__init__()
+            self.sistema = sistema
+            ctk.set_appearance_mode("System")
+            ctk.set_default_color_theme("blue")
+            self.title("Simulación AppGUI - Alumnos")
+            self.geometry("700x500")
 
-    ctk.CTkButton(ventana, text="Guardar", command=guardar).pack(pady=10)
+            header = ctk.CTkFrame(self)
+            header.pack(side="top", fill="x", padx=8, pady=6)
+            self.etiqueta_titulo = ctk.CTkLabel(header, text="Sistema de Asistencia", font=("Arial", 20))
+            self.etiqueta_titulo.pack(side="left", padx=8)
+            self.etiqueta_usuario = ctk.CTkLabel(header, text="Sin sesión")
+            self.etiqueta_usuario.pack(side="right", padx=8)
+            self.boton_logout = ctk.CTkButton(header, text="Logout", state="disabled")
+            self.boton_logout.pack(side="right", padx=8)
 
+            self.contenido = ctk.CTkFrame(self)
+            self.contenido.pack(fill="both", expand=True, padx=8, pady=6)
 
-def ventana_modificar_alumno():
-    def cargar():
-        alumno = sistema.buscar_alumno(entry_buscar.get())
-        if alumno:
-            entry_nombre.delete(0, "end")
-            entry_rut.delete(0, "end")
-
-            entry_nombre.insert(0, alumno.nombre)
-            entry_rut.insert(0, alumno.rut)
-
-        else:
-            messagebox.showerror("Error", "Alumno no encontrado")
-
-    def guardar_cambios():
-        alumno = sistema.buscar_alumno(entry_buscar.get())
-        if alumno:
-            alumno.nombre = entry_nombre.get()
-            alumno.rut = entry_rut.get()
-            messagebox.showinfo("Éxito", "Alumno modificado")
-            ventana.destroy()
-        else:
-            messagebox.showerror("Error", "Alumno no encontrado")
-
-    ventana = ctk.CTkToplevel(app)
-    ventana.title("Modificar Alumno")
-    ventana.geometry("350x300")
-
-    ctk.CTkLabel(ventana, text="ID del alumno a modificar:").pack()
-    entry_buscar = ctk.CTkEntry(ventana)
-    entry_buscar.pack(pady=5)
-
-    ctk.CTkButton(ventana, text="Cargar alumno", command=cargar).pack(pady=5)
-
-    ctk.CTkLabel(ventana, text="Nombre nuevo:").pack()
-    entry_nombre = ctk.CTkEntry(ventana)
-    entry_nombre.pack(pady=5)
-
-    ctk.CTkLabel(ventana, text="RUT nuevo:").pack()
-    entry_rut = ctk.CTkEntry(ventana)
-    entry_rut.pack(pady=5)
-
-    ctk.CTkButton(ventana, text="Guardar cambios", command=guardar_cambios).pack(pady=10)
-
-
-def ventana_eliminar_alumno():
-    def eliminar():
-        if sistema.eliminar_alumno(entry_id.get()):
-            messagebox.showinfo("Éxito", "Alumno eliminado")
-            ventana.destroy()
-        else:
-            messagebox.showerror("Error", "Alumno no encontrado")
-
-    ventana = ctk.CTkToplevel(app)
-    ventana.title("Eliminar Alumno")
-    ventana.geometry("300x160")
-
-    ctk.CTkLabel(ventana, text="ID del alumno:").pack(pady=5)
-    entry_id = ctk.CTkEntry(ventana)
-    entry_id.pack()
-
-    ctk.CTkButton(ventana, text="Eliminar", command=eliminar).pack(pady=10)
-
-
-def ventana_mostrar_alumnos():
-    ventana = ctk.CTkToplevel(app)
-    ventana.title("Lista de Alumnos")
-    ventana.geometry("400x400")
-
-    lista = sistema.listar_alumnos()
-
-    if not lista:
-        ctk.CTkLabel(ventana, text="No hay alumnos registrados").pack(pady=10)
-        return
-
-    for alumno in lista:
-        ctk.CTkLabel(ventana, text=alumno).pack(pady=3)
-
-
-# -------------------------
-# VENTANA PRINCIPAL
-# -------------------------
-
-app = ctk.CTk()
-app.title("Administración de Alumnos")
-app.geometry("400x350")
-
-ctk.CTkLabel(app, text="Administración de Alumnos", font=("Arial", 20)).pack(pady=15)
-
-ctk.CTkButton(app, text="Crear alumno", width=200, command=ventana_crear_alumno).pack(pady=10)
-ctk.CTkButton(app, text="Modificar alumno", width=200, command=ventana_modificar_alumno).pack(pady=10)
-ctk.CTkButton(app, text="Eliminar alumno", width=200, command=ventana_eliminar_alumno).pack(pady=10)
-ctk.CTkButton(app, text="Mostrar alumnos", width=200, command=ventana_mostrar_alumnos).pack(pady=10)
-
-app.mainloop()
+    sistema = SistemaAsistencia()
+    app = AppSimulada(sistema)
+    panel = AlumnosPanel(app, sistema)
+    panel.frame.pack(fill="both", expand=True, padx=12, pady=12)
+    app.mainloop()
