@@ -3,7 +3,6 @@ import json
 import os
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 import customtkinter as ctk
