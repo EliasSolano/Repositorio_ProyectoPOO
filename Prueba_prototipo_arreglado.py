@@ -84,7 +84,7 @@ class SistemaAsistencia:
         self.siguiente_id_estudiante = 1
         self.siguiente_id_sesion = 1
 
-        # usuarios: nombre_usuario -> {id, password}
+        # usuarios: nombre_usuario -> {id, contaseña}
         self.usuarios: Dict[str, Dict[str, Any]] = {}
 
         self.cargar_todo()
