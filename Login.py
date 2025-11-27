@@ -1,100 +1,159 @@
 from __future__ import annotations
-import json
-import os
-from datetime import datetime
-from typing import Dict, List, Optional, Any
-
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox
 import customtkinter as ctk
 
-Usuarios = "usuarios.json"  # Json para guardar usuarios
+class LoginPanel:
 
-def cargar_usuarios():  # Función para cargar usuarios desde el Json
-    if not os.path.exists(Usuarios):
-        return {}
-    with open(Usuarios, "r", encoding="utf-8") as f:
-        return json.load(f)
+    def __init__(self, app_gui, sistema):
+        self.app = app_gui
+        self.sistema = sistema
 
-def guardar_usuarios(usuarios):  # Función para guardar usuarios en el JSON
-    with open(Usuarios, "w", encoding="utf-8") as f:
-        json.dump(usuarios, f, indent=4, ensure_ascii=False)
+        parent = getattr(self.app, "contenido", self.app)
+        self.frame = ctk.CTkFrame(parent)
 
-def es_valido(texto):  # Función para validar que solo sean letras y números
-    return bool(re.match("^[A-Za-z0-9]+$", texto))
+        lbl = ctk.CTkLabel(self.frame, text="Iniciar sesión o registrarse", font=("Arial", 16))
+        lbl.pack(pady=10)
 
-def generar_id(usuarios): # Función para generar ID único
-    """Genera un ID incremental basado en los existentes"""
-    if not usuarios:
-        return 1
-    ids = [datos["id"] for datos in usuarios.values()]
-    return max(ids) + 1
+        self.entrada_usuario_login = ctk.CTkEntry(self.frame, placeholder_text="Usuario")
+        self.entrada_usuario_login.pack(pady=6)
+        self.entrada_pass_login = ctk.CTkEntry(self.frame, placeholder_text="Contraseña", show="*")
+        self.entrada_pass_login.pack(pady=6)
 
-def registrar():  # Función para registrar usuario
-    usuario = entry_usuario.get()
-    contrasena = entry_contrasena.get()
-    usuarios = cargar_usuarios()
+        btn_login = ctk.CTkButton(self.frame, text="Iniciar sesión", command=self.accion_login)
+        btn_register = ctk.CTkButton(self.frame, text="Registrarse", command=self.accion_registrar)
+        btn_login.pack(pady=6)
+        btn_register.pack(pady=6)
 
-    if not usuario or not contrasena:  # Error cuando falta usuario o contraseña
-        label_mensaje.configure(text="Error: El Usuario y contraseña no pueden estar vacíos", text_color="red")
-        return
+        self.mensaje_login = ctk.CTkLabel(self.frame, text="")
+        self.mensaje_login.pack(pady=6)
 
-    if not es_valido(usuario) or not es_valido(contrasena):  # Error cuando hay otros caracteres
-        label_mensaje.configure(text="Error: Solo se puede rellenar con letras y números", text_color="red")
-        return
+        if not hasattr(self.app, "etiqueta_usuario"):
+            self.app.etiqueta_usuario = ctk.CTkLabel(self.app, text="Sin sesión")
+        if not hasattr(self.app, "boton_logout"):
+            self.app.boton_logout = ctk.CTkButton(self.app, text="Logout", command=self._logout_local, state="disabled")
 
-    if usuario in usuarios:  # Error cuando se crea un usuario que ya existe
-        label_mensaje.configure(text="Error: El usuario ya existe", text_color="red")
-        return
+    def accion_registrar(self):
+        u = self.entrada_usuario_login.get().strip()
+        p = self.entrada_pass_login.get().strip()
+        if not u or not p:
+            self.mensaje_login.configure(text="Usuario/contraseña obligatorios", text_color="red")
+            return
+        ok = self.sistema.registrar_usuario(u, p)
+        if ok:
+            self.mensaje_login.configure(text="Usuario creado. Inicia sesión.", text_color="green")
+        else:
+            self.mensaje_login.configure(text="Usuario ya existe", text_color="red")
 
-    # Generar ID único
-    nuevo_id = generar_id(usuarios)
+    def accion_login(self):
+        u = self.entrada_usuario_login.get().strip()
+        p = self.entrada_pass_login.get().strip()
+        if not u or not p:
+            self.mensaje_login.configure(text="Usuario/contraseña obligatorios", text_color="red")
+            return
+        if self.sistema.verificar_usuario(u, p):
+            try:
+                self.app.usuario_logueado = u
+            except Exception:
+                pass
+            try:
+                self.app.etiqueta_usuario.configure(text=f"Usuario: {u}")
+            except Exception:
+                pass
+            try:
+                self.app.boton_logout.configure(state="normal")
+            except Exception:
+                pass
+            self.mensaje_login.configure(text="Inicio correcto", text_color="green")
+            self.entrada_usuario_login.delete(0, "end")
+            self.entrada_pass_login.delete(0, "end")
+            try:
+                if hasattr(self.app, "mostrar_cursos"):
+                    self.app.mostrar_cursos()
+            except Exception:
+                pass
+        else:
+            self.mensaje_login.configure(text="Usuario/contraseña incorrectos", text_color="red")
 
-    # Guardar usuario con contraseña e ID
-    usuarios[usuario] = {"contrasena": contrasena, "id": nuevo_id}
-    guardar_usuarios(usuarios)
-    label_mensaje.configure(text=f"Usuario registrado con éxito", text_color="green")
+    def logout(self):
+        try:
+            self.app.usuario_logueado = None
+        except Exception:
+            pass
+        try:
+            self.app.etiqueta_usuario.configure(text="Sin sesión")
+        except Exception:
+            pass
+        try:
+            self.app.boton_logout.configure(state="disabled")
+        except Exception:
+            pass
+        messagebox.showinfo("Logout", "Sesión cerrada.")
+        try:
+            if hasattr(self.app, "mostrar_login"):
+                self.app.mostrar_login()
+        except Exception:
+            pass
 
-def iniciar_sesion():  # Función para iniciar sesión
-    usuario = entry_usuario.get()
-    contrasena = entry_contrasena.get()
-    usuarios = cargar_usuarios()
+    def _logout_local(self):
+        self.logout()
 
-    if usuario in usuarios and usuarios[usuario]["contrasena"] == contrasena:
-        user_id = usuarios[usuario]["id"]
-        label_mensaje.configure(text=f"Inicio de sesión exitoso", text_color="green")
-        # Luego de aquí se abrirá el programa de asistencia
-    else:
-        label_mensaje.configure(text="Usuario o contraseña incorrecto", text_color="red")
+if __name__ == "__main__":
+    try:
+        from asistencia_app import SistemaAsistencia  
+    except Exception:
+        class SistemaAsistencia:
+            def __init__(self):
+                self.usuarios = {}
+            def registrar_usuario(self, nombre_usuario: str, password: str) -> bool:
+                if nombre_usuario in self.usuarios:
+                    return False
+                uid = max([u["id"] for u in self.usuarios.values()], default=0) + 1
+                self.usuarios[nombre_usuario] = {"id": uid, "password": password}
+                return True
 
+            def verificar_usuario(self, nombre_usuario: str, password: str) -> bool:
+                u = self.usuarios.get(nombre_usuario)
+                return bool(u and u.get("password") == password)
 
-ventana = ctk.CTk()
-ventana.title("Login: Sistema de asistencia") #Nombre de ventana
-ventana.geometry("400x300") # Tamaño de ventana
+    class AppSimulada(ctk.CTk):
+        def __init__(self, sistema):
+            super().__init__()
+            self.sistema = sistema
+            ctk.set_appearance_mode("System")
+            ctk.set_default_color_theme("blue")
+            self.title("Sistema de Asistencia - Login (prueba)")
+            self.geometry("600x400")
 
-ctk.set_appearance_mode("system") # Agarra el color del sistema
-ctk.set_default_color_theme("green") # Color verde para widgets
+            header = ctk.CTkFrame(self)
+            header.pack(side="top", fill="x", padx=8, pady=6)
+            self.etiqueta_titulo = ctk.CTkLabel(header, text="Sistema de Asistencia", font=("Arial", 20))
+            self.etiqueta_titulo.pack(side="left", padx=8)
+            self.etiqueta_usuario = ctk.CTkLabel(header, text="Sin sesión")
+            self.etiqueta_usuario.pack(side="right", padx=8)
+            self.boton_logout = ctk.CTkButton(header, text="Logout", command=self._on_logout, state="disabled")
+            self.boton_logout.pack(side="right", padx=8)
 
-label_titulo = ctk.CTkLabel(ventana, text="Sistema de asistencia", font=("Arial", 20))
-label_titulo.pack(pady=10)
+            self.contenido = ctk.CTkFrame(self)
+            self.contenido.pack(fill="both", expand=True, padx=8, pady=6)
 
-entry_usuario = ctk.CTkEntry(ventana, placeholder_text="Usuario")
-entry_usuario.pack(pady=5)
+        def mostrar_cursos(self):
+            messagebox.showinfo("Navegación", "mostrar_cursos() llamado (simulación)")
 
-entry_contrasena = ctk.CTkEntry(ventana, placeholder_text="Contraseña", show="*")
-entry_contrasena.pack(pady=5)
+        def mostrar_login(self):
+            for w in self.contenido.winfo_children():
+                w.pack_forget()
+            login_panel.frame.pack(fill="both", expand=True, padx=12, pady=12)
 
-btn_login = ctk.CTkButton(ventana, text="Iniciar Sesión", command=iniciar_sesion)
-btn_login.pack(pady=5)
+        def _on_logout(self):
+            try:
+                login_panel.logout()
+            except Exception:
+                self.etiqueta_usuario.configure(text="Sin sesión")
+                self.boton_logout.configure(state="disabled")
 
-btn_registro = ctk.CTkButton(ventana, text="Registrarse", command=registrar)
-btn_registro.pack(pady=5)
-
-label_mensaje = ctk.CTkLabel(ventana, text="")
-label_mensaje.pack(pady=10)
-
-ventana.mainloop()
-
-#Puto el que lo lea
-
-#En especial benja
+    sistema = SistemaAsistencia()
+    app = AppSimulada(sistema)
+    login_panel = LoginPanel(app, sistema)
+    login_panel.frame.pack(fill="both", expand=True, padx=12, pady=12)
+    app.mainloop()
