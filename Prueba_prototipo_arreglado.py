@@ -8,26 +8,24 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog
 import customtkinter as ctk
 
-# ----------------------
+
 # Archivos de persistencia
-# ----------------------
 ARCHIVO_DATOS = "datos.json"
 ARCHIVO_USUARIOS = "usuarios.json"
 
-# ----------------------
-# Modelos (clases simples)
-# ----------------------
+
+# Modelos
 class Estudiante:
     def __init__(self, id: int, nombre: str, rut: Optional[str] = ""):
         self.id = id
         self.nombre = nombre
         self.rut = rut
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]: #Enviar información de estudiante a diccionario
         return {"id": self.id, "nombre": self.nombre, "rut": self.rut}
 
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "Estudiante":
+    @staticmethod # @staticmethod se pone encima de un método dentro de la clase para indicar que la función no recibe el self
+    def from_dict(d: Dict[str, Any]) -> "Estudiante": #Traer información de diccionarrio a un objeto
         return Estudiante(d["id"], d["nombre"], d.get("rut", ""))
 
 
@@ -37,11 +35,11 @@ class Curso:
         self.nombre = nombre
         self.horario = horario
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]: # Envia al diccionario
         return {"codigo": self.codigo, "nombre": self.nombre, "horario": self.horario}
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "Curso":
+    def from_dict(d: Dict[str, Any]) -> "Curso": # Toma de diccionario
         return Curso(d["codigo"], d["nombre"], d.get("horario", ""))
 
 
@@ -52,7 +50,7 @@ class Sesion:
         self.fecha = fecha
         self.ids_presentes = ids_presentes
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]: #Guardar información de sesión 
         return {
             "id": self.id,
             "codigo_curso": self.codigo_curso,
@@ -66,9 +64,7 @@ class Sesion:
                       d.get("ids_presentes", []))
 
 
-# ----------------------
-# Sistema (lógica + persistencia)
-# ----------------------
+# Sistema 
 class SistemaAsistencia:
     def __init__(self, archivo_datos: str = ARCHIVO_DATOS, archivo_usuarios: str = ARCHIVO_USUARIOS):
         self.archivo_datos = archivo_datos
@@ -89,7 +85,7 @@ class SistemaAsistencia:
 
         self.cargar_todo()
 
-    # --- persistencia ---
+    #  persistencia 
     def cargar_todo(self):
         # datos: estudiantes, cursos, sesiones, siguientes ids
         if not os.path.exists(self.archivo_datos):
@@ -146,7 +142,7 @@ class SistemaAsistencia:
         self._guardar_datos()
         self._guardar_usuarios()
 
-    # --- estudiantes (globales) ---
+    #  estudiantes (globales) 
     def agregar_estudiante_global(self, nombre: str, rut: str = "") -> Estudiante:
         st = Estudiante(self.siguiente_id_estudiante, nombre, rut)
         self.estudiantes[st.id] = st
@@ -166,14 +162,14 @@ class SistemaAsistencia:
     def eliminar_estudiante(self, estudiante_id: int):
         if estudiante_id not in self.estudiantes:
             raise ValueError("Alumno no encontrado")
-        # eliminar del sistema (y de todas las listas de presentes de las sesiones)
+        # eliminar del sistema 
         del self.estudiantes[estudiante_id]
         for sess in self.sesiones.values():
             if estudiante_id in sess.ids_presentes:
                 sess.ids_presentes.remove(estudiante_id)
         self._guardar_datos()
 
-    # --- cursos ---
+    #cursos 
     def crear_curso(self, codigo: str, nombre: str, horario: str = "") -> Curso:
         if codigo in self.cursos:
             raise ValueError("Código de curso ya existe")
@@ -207,7 +203,7 @@ class SistemaAsistencia:
         self.sesiones = {sid: s for sid, s in self.sesiones.items() if s.codigo_curso != codigo}
         self._guardar_datos()
 
-    # --- sesiones ---
+    #  sesiones 
     def iniciar_sesion(self, codigo_curso: str) -> Sesion:
         if codigo_curso not in self.cursos:
             raise ValueError("Curso no encontrado")
@@ -245,7 +241,7 @@ class SistemaAsistencia:
                 sess.ids_presentes.append(sid)
         self._guardar_datos()
 
-    # --- estadísticas ---
+    #  estadísticas 
     def porcentaje_asistencia_por_estudiante(self, codigo_curso: str, estudiante_id: int) -> float:
         sesiones = [s for s in self.sesiones.values() if s.codigo_curso == codigo_curso]
         if not sesiones:
@@ -256,7 +252,7 @@ class SistemaAsistencia:
     def obtener_sesiones_por_curso(self, codigo_curso: str) -> List[Sesion]:
         return [s for s in self.sesiones.values() if s.codigo_curso == codigo_curso]
 
-    # --- usuarios (login simple) ---
+    #  usuarios (login simple) 
     def registrar_usuario(self, nombre_usuario: str, password: str) -> bool:
         if nombre_usuario in self.usuarios:
             return False
@@ -270,9 +266,8 @@ class SistemaAsistencia:
         return bool(u and u.get("password") == password)
 
 
-# ----------------------
-# GUI único (con pestañas vistas)
-# ----------------------
+
+# GUI
 class AppGUI(ctk.CTk):
     def __init__(self, sistema: SistemaAsistencia):
         super().__init__()
@@ -284,7 +279,6 @@ class AppGUI(ctk.CTk):
 
         self.usuario_logueado: Optional[str] = None
 
-        # Header
         header = ctk.CTkFrame(self)
         header.pack(side="top", fill="x", padx=8, pady=6)
         self.etiqueta_titulo = ctk.CTkLabel(header, text="Sistema de Asistencia", font=("Arial", 20))
@@ -294,7 +288,6 @@ class AppGUI(ctk.CTk):
         self.boton_logout = ctk.CTkButton(header, text="Logout", command=self.logout, state="disabled")
         self.boton_logout.pack(side="right", padx=8)
 
-        # Navigation buttons
         nav = ctk.CTkFrame(self)
         nav.pack(side="top", fill="x", padx=8, pady=6)
         self.btn_vista_login = ctk.CTkButton(nav, text="Login", command=self.mostrar_login)
@@ -305,11 +298,9 @@ class AppGUI(ctk.CTk):
         for b in (self.btn_vista_login, self.btn_vista_cursos, self.btn_vista_alumnos, self.btn_vista_sesiones, self.btn_vista_porcentajes):
             b.pack(side="left", padx=6)
 
-        # Content container
         self.contenido = ctk.CTkFrame(self)
         self.contenido.pack(side="top", fill="both", expand=True, padx=8, pady=6)
 
-        # Build frames but don't pack yet
         self.frame_login = self.construir_frame_login()
         self.frame_cursos = None
         self.frame_alumnos = None
@@ -318,9 +309,6 @@ class AppGUI(ctk.CTk):
 
         self.mostrar_login()
 
-    # ----------------------
-    # Construcción de frames
-    # ----------------------
     def construir_frame_login(self):
         frm = ctk.CTkFrame(self.contenido)
 
@@ -348,7 +336,6 @@ class AppGUI(ctk.CTk):
         top.pack(side="top", fill="x", padx=6, pady=6)
         ctk.CTkLabel(top, text="Crear / Modificar Cursos", font=("Arial", 14)).pack(side="left", padx=6)
 
-        # campos
         campos = ctk.CTkFrame(frm)
         campos.pack(side="top", fill="x", padx=6, pady=6)
         self.entrada_codigo_curso = ctk.CTkEntry(campos, placeholder_text="Código (ej: CS101)")
@@ -363,7 +350,6 @@ class AppGUI(ctk.CTk):
         ctk.CTkButton(btns, text="Editar seleccionado", command=self.ui_editar_curso).pack(side="left", padx=6)
         ctk.CTkButton(btns, text="Borrar seleccionado", command=self.ui_eliminar_curso).pack(side="left", padx=6)
 
-        # listbox cursos
         listf = ctk.CTkFrame(frm)
         listf.pack(fill="both", expand=True, padx=6, pady=6)
         self.listbox_cursos = tk.Listbox(listf, height=14)
@@ -423,7 +409,7 @@ class AppGUI(ctk.CTk):
         self.combo_curso_sesiones.pack(side="left", padx=6)
         self.combo_curso_sesiones.configure(command=self.on_cambio_curso_sesiones)
 
-        # lista de alumnos (multi-select)
+        # lista de alumnos 
         leftf = ctk.CTkFrame(frm)
         leftf.pack(side="left", fill="both", expand=True, padx=6, pady=6)
         ctk.CTkLabel(leftf, text="Alumnos (seleccione múltiples con Ctrl/Shift)").pack(anchor="w", padx=4)
@@ -457,9 +443,7 @@ class AppGUI(ctk.CTk):
 
         return frm
 
-    # ----------------------
     # Mostrar frames
-    # ----------------------
     def limpiar_contenido(self):
         for w in self.contenido.winfo_children():
             w.pack_forget()
@@ -503,9 +487,7 @@ class AppGUI(ctk.CTk):
         self.frame_porcentajes.pack(fill="both", expand=True)
         self.combo_curso_porcentajes.configure(values=list(self.sistema.cursos.keys()))
 
-    # ----------------------
-    # Acciones de login
-    # ----------------------
+    # Login
     def accion_registrar(self):
         u = self.entrada_usuario_login.get().strip()
         p = self.entrada_pass_login.get().strip()
@@ -548,9 +530,6 @@ class AppGUI(ctk.CTk):
             return False
         return True
 
-    # ----------------------
-    # Helpers UI Cursos
-    # ----------------------
     def refrescar_lista_cursos(self):
         self.listbox_cursos.delete(0, "end")
         for codigo, c in sorted(self.sistema.cursos.items()):
@@ -621,9 +600,6 @@ class AppGUI(ctk.CTk):
             except ValueError as e:
                 messagebox.showerror("Error", str(e))
 
-    # ----------------------
-    # Helpers UI Alumnos (globales)
-    # ----------------------
     def refrescar_lista_alumnos(self):
         self.listbox_alumnos.delete(0, "end")
         for sid, st in sorted(self.sistema.estudiantes.items()):
@@ -675,9 +651,6 @@ class AppGUI(ctk.CTk):
             except ValueError as e:
                 messagebox.showerror("Error", str(e))
 
-    # ----------------------
-    # Helpers UI Sesiones
-    # ----------------------
     def on_cambio_curso_sesiones(self, val):
         # poblar lista de alumnos multi-select y lista de sesiones
         self.listbox_alumnos_sesiones.delete(0, "end")
@@ -712,7 +685,7 @@ class AppGUI(ctk.CTk):
             return
         sess_txt = self.listbox_sesiones.get(sel_s[0])
         sess_id = int(sess_txt.split(" - ")[0])
-        # alumnos seleccionados (multi)
+        # alumnos seleccionados
         sels = self.listbox_alumnos_sesiones.curselection()
         if not sels:
             messagebox.showwarning("Seleccione alumnos", "Seleccione uno o más alumnos.")
@@ -782,9 +755,8 @@ class AppGUI(ctk.CTk):
             except ValueError as e:
                 messagebox.showerror("Error", str(e))
 
-    # ----------------------
-    # UI Porcentajes
-    # ----------------------
+    # Porcentajes
+   
     def refrescar_lista_porcentajes(self, val):
         self.listbox_porcentajes.delete(0, "end")
         codigo_curso = self.combo_curso_porcentajes.get()
