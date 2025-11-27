@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__ import annotations # Sirve para usar nombres de clases aún no definidas (ej linea 28)
 import json
 import os
 from datetime import datetime
@@ -8,24 +8,24 @@ from tkinter import messagebox, simpledialog
 import customtkinter as ctk
 
 
-# Archivos de persistencia
-ARCHIVO_DATOS = "datos.json"
-ARCHIVO_USUARIOS = "usuarios.json"
+# Archivos json
+ARCHIVO_DATOS = "datos.json" # Este guarda los datos del programa (alumnos, cursos, sesiones)
+ARCHIVO_USUARIOS = "usuarios.json" # Este guarda los datos de inicio de sesión
 
 
-# Modelos
+# Clases principales
 class Estudiante:
     def __init__(self, id: int, nombre: str, rut: Optional[str] = ""):
         self.id = id
         self.nombre = nombre
         self.rut = rut
 
-    def to_dict(self) -> Dict[str, Any]: #Enviar información de estudiante a diccionario
+    def to_dict(self) -> Dict[str, Any]: # Convierte el obj a un diccionario compatible con json, [str son claves, Any valores]
         return {"id": self.id, "nombre": self.nombre, "rut": self.rut}
 
     @staticmethod # @staticmethod se pone encima de un método dentro de la clase para indicar que la función no recibe el self
-    def from_dict(d: Dict[str, Any]) -> "Estudiante": #Traer información de diccionarrio a un objeto
-        return Estudiante(d["id"], d["nombre"], d.get("rut", ""))
+    def from_dict(d: Dict[str, Any]) -> "Estudiante": # Recibe la información del diccionario de json y lo convierte a obj
+        return Estudiante(d["id"], d["nombre"], d.get("rut", "")) 
 
 
 class Curso:
@@ -49,32 +49,32 @@ class Sesion:
         self.fecha = fecha
         self.ids_presentes = ids_presentes
 
-    def to_dict(self) -> Dict[str, Any]: #Guardar información de sesión 
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "codigo_curso": self.codigo_curso,
-            "fecha": self.fecha.isoformat(),
+            "fecha": self.fecha.isoformat(), # Guarda la fecha en un string para que sea compatible con el json
             "ids_presentes": self.ids_presentes
         }
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "Sesion":
-        return Sesion(d["id"], d["codigo_curso"], datetime.fromisoformat(d["fecha"]),
+        return Sesion(d["id"], d["codigo_curso"], datetime.fromisoformat(d["fecha"]), # Convierte la fecha (string) a datetime
                       d.get("ids_presentes", []))
 
 
-# Sistema 
+# Clase más importante (acá se guardan los datos y se definen las funciones principales)
 class SistemaAsistencia:
     def __init__(self, archivo_datos: str = ARCHIVO_DATOS, archivo_usuarios: str = ARCHIVO_USUARIOS):
         self.archivo_datos = archivo_datos
         self.archivo_usuarios = archivo_usuarios
 
-        # diccionario global de estudiantes: id -> Estudiante
+        
         self.estudiantes: Dict[int, Estudiante] = {}
-        # diccionario de cursos: codigo -> Curso
         self.cursos: Dict[str, Curso] = {}
-        # diccionario de sesiones: id -> Sesion
         self.sesiones: Dict[int, Sesion] = {}
+
+        # self.estudiantes/cursos/sesiones son los diccionarios que se habian cargado del diccionario
 
         self.siguiente_id_estudiante = 1
         self.siguiente_id_sesion = 1
@@ -84,9 +84,9 @@ class SistemaAsistencia:
 
         self.cargar_todo()
 
-    #  persistencia 
-    def cargar_todo(self):
-        # datos: estudiantes, cursos, sesiones, siguientes ids
+    
+    def cargar_todo(self): # Método que carga los datos del json
+        
         if not os.path.exists(self.archivo_datos):
             self._guardar_datos()
         with open(self.archivo_datos, "r", encoding="utf-8") as f:
@@ -94,7 +94,7 @@ class SistemaAsistencia:
                 datos = json.load(f)
             except json.JSONDecodeError:
                 datos = {}
-
+        # estudiantes, cursos y sesiones
         self.estudiantes = {}
         for s in datos.get("estudiantes", []):
             st = Estudiante.from_dict(s)
@@ -113,7 +113,7 @@ class SistemaAsistencia:
         self.siguiente_id_estudiante = datos.get("siguiente_id_estudiante", self.siguiente_id_estudiante)
         self.siguiente_id_sesion = datos.get("siguiente_id_sesion", self.siguiente_id_sesion)
 
-        # usuarios
+        # usuarios (inicio de sesión)
         if not os.path.exists(self.archivo_usuarios):
             self._guardar_usuarios()
         with open(self.archivo_usuarios, "r", encoding="utf-8") as f:
@@ -122,7 +122,7 @@ class SistemaAsistencia:
             except json.JSONDecodeError:
                 self.usuarios = {}
 
-    def _guardar_datos(self):
+    def _guardar_datos(self): # Método para guardar los datos al json
         datos = {
             "estudiantes": [s.to_dict() for s in self.estudiantes.values()],
             "cursos": [c.to_dict() for c in self.cursos.values()],
@@ -133,23 +133,23 @@ class SistemaAsistencia:
         with open(self.archivo_datos, "w", encoding="utf-8") as f:
             json.dump(datos, f, ensure_ascii=False, indent=2)
 
-    def _guardar_usuarios(self):
+    def _guardar_usuarios(self): # Método para guardar los datos de inicio de sesión al json
         with open(self.archivo_usuarios, "w", encoding="utf-8") as f:
             json.dump(self.usuarios, f, ensure_ascii=False, indent=2)
 
-    def guardar_todo(self):
+    def guardar_todo(self): # Método que llama a los metodos para guardar todo al json
         self._guardar_datos()
         self._guardar_usuarios()
 
-    #  estudiantes (globales) 
-    def agregar_estudiante_global(self, nombre: str, rut: str = "") -> Estudiante:
+
+    def agregar_estudiante_global(self, nombre: str, rut: str = "") -> Estudiante: # Método que crea un estudiante
         st = Estudiante(self.siguiente_id_estudiante, nombre, rut)
         self.estudiantes[st.id] = st
         self.siguiente_id_estudiante += 1
         self._guardar_datos()
         return st
 
-    def actualizar_estudiante(self, estudiante_id: int, nuevo_nombre: str, nuevo_rut: str) -> Estudiante:
+    def actualizar_estudiante(self, estudiante_id: int, nuevo_nombre: str, nuevo_rut: str) -> Estudiante: # Método que modifica los datos del estudiante
         st = self.estudiantes.get(estudiante_id)
         if not st:
             raise ValueError("Alumno no encontrado")
@@ -158,18 +158,18 @@ class SistemaAsistencia:
         self._guardar_datos()
         return st
 
-    def eliminar_estudiante(self, estudiante_id: int):
+    def eliminar_estudiante(self, estudiante_id: int): # Método que elimina un estudiante
         if estudiante_id not in self.estudiantes:
             raise ValueError("Alumno no encontrado")
-        # eliminar del sistema 
+
         del self.estudiantes[estudiante_id]
         for sess in self.sesiones.values():
             if estudiante_id in sess.ids_presentes:
                 sess.ids_presentes.remove(estudiante_id)
         self._guardar_datos()
 
-    #cursos 
-    def crear_curso(self, codigo: str, nombre: str, horario: str = "") -> Curso:
+
+    def crear_curso(self, codigo: str, nombre: str, horario: str = "") -> Curso: # Método que crea un curso
         if codigo in self.cursos:
             raise ValueError("Código de curso ya existe")
         co = Curso(codigo, nombre, horario)
@@ -177,7 +177,7 @@ class SistemaAsistencia:
         self._guardar_datos()
         return co
 
-    def actualizar_curso(self, codigo_antiguo: str, codigo_nuevo: str, nombre: str, horario: str) -> Curso:
+    def actualizar_curso(self, codigo_antiguo: str, codigo_nuevo: str, nombre: str, horario: str) -> Curso: # Método que cambia los datos de un curso
         if codigo_antiguo not in self.cursos:
             raise ValueError("Curso no encontrado")
         if codigo_nuevo != codigo_antiguo and codigo_nuevo in self.cursos:
@@ -194,7 +194,7 @@ class SistemaAsistencia:
         self._guardar_datos()
         return co
 
-    def eliminar_curso(self, codigo: str):
+    def eliminar_curso(self, codigo: str): # Método que elimina un curso
         if codigo not in self.cursos:
             raise ValueError("Curso no encontrado")
         del self.cursos[codigo]
@@ -202,8 +202,8 @@ class SistemaAsistencia:
         self.sesiones = {sid: s for sid, s in self.sesiones.items() if s.codigo_curso != codigo}
         self._guardar_datos()
 
-    #  sesiones 
-    def iniciar_sesion(self, codigo_curso: str) -> Sesion:
+
+    def iniciar_sesion(self, codigo_curso: str) -> Sesion: # Crear una sesión
         if codigo_curso not in self.cursos:
             raise ValueError("Curso no encontrado")
         sess = Sesion(self.siguiente_id_sesion, codigo_curso, datetime.now(), [])
@@ -212,15 +212,14 @@ class SistemaAsistencia:
         self._guardar_datos()
         return sess
 
-    def editar_sesion(self, sesion_id: int, nueva_fecha: Optional[datetime] = None, nuevos_ids_presentes: Optional[List[int]] = None):
+    def editar_sesion(self, sesion_id: int, nueva_fecha: Optional[datetime] = None, nuevos_ids_presentes: Optional[List[int]] = None): # Editar una sesion
         sess = self.sesiones.get(sesion_id)
         if not sess:
             raise ValueError("Sesión no encontrada")
         if nueva_fecha:
             sess.fecha = nueva_fecha
-        if nuevos_ids_presentes is not None:
-            # validar ids existentes
-            ids_validos = set(self.estudiantes.keys())
+        if nuevos_ids_presentes is not None: # Modifica la lista de alumnos presentes
+            ids_validos = set(self.estudiantes.keys()) 
             sess.ids_presentes = [sid for sid in nuevos_ids_presentes if sid in ids_validos]
         self._guardar_datos()
 
@@ -236,12 +235,12 @@ class SistemaAsistencia:
             raise ValueError("Sesión no encontrada")
         ids_validos = set(self.estudiantes.keys())
         for sid in ids_estudiantes:
-            if sid in ids_validos and sid not in sess.ids_presentes:
+            if sid in ids_validos and sid not in sess.ids_presentes: # Evita poner ids de alumnos que no existen y que no se repita el presente
                 sess.ids_presentes.append(sid)
         self._guardar_datos()
 
-    #  estadísticas 
-    def porcentaje_asistencia_por_estudiante(self, codigo_curso: str, estudiante_id: int) -> float:
+
+    def porcentaje_asistencia_por_estudiante(self, codigo_curso: str, estudiante_id: int) -> float: # Calcula el porcentaje de asistencia
         sesiones = [s for s in self.sesiones.values() if s.codigo_curso == codigo_curso]
         if not sesiones:
             return 0.0
@@ -266,7 +265,7 @@ class SistemaAsistencia:
 
 
 
-# GUI
+# GUI (Interfaz del customtkinter)
 class AppGUI(ctk.CTk):
     def __init__(self, sistema: SistemaAsistencia):
         super().__init__()
@@ -765,7 +764,7 @@ class AppGUI(ctk.CTk):
             pct = self.sistema.porcentaje_asistencia_por_estudiante(codigo_curso, sid)
             self.listbox_porcentajes.insert("end", f"{sid}: {st.nombre} — {pct:.1f}%")
 
-# Ejecutar
+# Esto ejecuta el programa y conecta la interfaz con las funciones
 def main():
     sistema = SistemaAsistencia()
     app = AppGUI(sistema)
