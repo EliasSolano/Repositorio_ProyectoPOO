@@ -1,8 +1,12 @@
-import tkinter
-import customtkinter as ctk
+from __future__ import annotations
 import json
-import re
 import os
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+import customtkinter as ctk
 
 Usuarios = "usuarios.json"  # Json para guardar usuarios
 
@@ -92,4 +96,5 @@ label_mensaje.pack(pady=10)
 ventana.mainloop()
 
 #Puto el que lo lea
+
 #En especial benja
