@@ -15,4 +15,4 @@ Cosas por hacer (Prototipo 2):
 - Arreglar diagrama de clases
 - Mejorar aspecto visual
 - Agregar ejemplos por todos lados
-- Agregar un apartado en el que se pueda ver la información del usuario
+- Agregar un apartado en el que se pueda ver y modificar la información del usuario
